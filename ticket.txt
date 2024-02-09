@@ -1,0 +1,96 @@
+package main
+
+import (
+    "database/sql"
+    "fmt"
+    "log"
+    "math/rand"
+    "time"
+
+    _ "github.com/mattn/go-sqlite3"
+)
+
+const (
+    numRows    = 3
+    numColumns = 9
+)
+
+func main() {
+    // Initialize SQLite database
+    db, err := sql.Open("sqlite3", "./tambola.db")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+
+    // Create tickets table if it doesn't exist
+    _, err = db.Exec(`CREATE TABLE IF NOT EXISTS tickets (
+        id INTEGER PRIMARY KEY,
+        numbers TEXT
+    )`)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Seed random number generator
+    rand.Seed(time.Now().UnixNano())
+
+    // Generate and insert 10 Tambola tickets
+    for i := 0; i < 10; i++ {
+        ticketNumbers := generateTicketNumbers()
+        numbersStr := numbersToString(ticketNumbers)
+        _, err := db.Exec("INSERT INTO tickets (numbers) VALUES (?)", numbersStr)
+        if err != nil {
+            log.Fatal(err)
+        }
+    }
+
+    fmt.Println("Tambola tickets generated successfully!")
+}
+
+func generateTicketNumbers() [][]int {
+    numbers := make([][]int, numRows)
+
+    // Generate random numbers for each row
+    for i := 0; i < numRows; i++ {
+        numbers[i] = generateUniqueRandomNumbers(numColumns)
+    }
+
+    return numbers
+}
+
+func generateUniqueRandomNumbers(count int) []int {
+    numbers := make([]int, count)
+    used := make(map[int]bool)
+
+    // Generate unique random numbers
+    for i := 0; i < count; i++ {
+        num := rand.Intn(90) + 1
+        for used[num] {
+            num = rand.Intn(90) + 1
+        }
+        numbers[i] = num
+        used[num] = true
+    }
+
+    // Sort the numbers in ascending order
+    sort.Ints(numbers)
+
+    return numbers
+}
+
+func numbersToString(numbers [][]int) string {
+    var str string
+    for i, row := range numbers {
+        for j, num := range row {
+            str += fmt.Sprintf("%2d", num)
+            if j < len(row)-1 {
+                str += " | "
+            }
+        }
+        if i < len(numbers)-1 {
+            str += "\n"
+        }
+    }
+    return str
+}
